@@ -86,12 +86,6 @@ class get_model(nn.Module):
 class get_loss(nn.Module):
     """
     定义损失函数计算模块。
-
-    参数:
-    - None
-
-    属性:
-    - None
     """
 
     # 定义一个用于计算损失的类，它继承自nn.Module

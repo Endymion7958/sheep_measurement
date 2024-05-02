@@ -17,28 +17,25 @@ z = points[:, 2]  # z position of point
 # x_normalized = (x - np.min(x)) / (np.max(x) - np.min(x))
 # y_normalized = (y - np.min(y)) / (np.max(y) - np.min(y))
 # z_normalized = (z - np.min(z)) / (np.max(z) - np.min(z))
-part_label =np.expand_dims( points[:,6], axis=1)
+part_label = np.expand_dims(points[:, 6], axis=1)
 
-
-#预定义部件颜色的值
-rgba = np.array([[84, 61, 32,0], [121, 13, 22,0], [72, 251, 126,0], [112, 208, 166,0], [14, 137, 100,0], [118, 153, 23,0]])
+# 预定义部件颜色的值
+rgba = np.array(
+    [[84, 61, 32, 0], [121, 13, 22, 0], [72, 251, 126, 0], [112, 208, 166, 0], [14, 137, 100, 0], [118, 153, 23, 0]])
 rgba[:, -1] = 255  # 设置颜色第四维度-不透明
 
-#根据不同的label值选择不同的部件颜色值
-part_label =  np.where(part_label == 6, rgba[0], part_label.astype(int))
-part_label =  np.where(part_label == 7, rgba[1], part_label.astype(int))
+# 根据不同的label值选择不同的部件颜色值
+part_label = np.where(part_label == 6, rgba[0], part_label.astype(int))
+part_label = np.where(part_label == 7, rgba[1], part_label.astype(int))
 
-
-
-mlab.figure(bgcolor=(1, 1, 1)) # 绘制背景面板为白色
-pts = mlab.pipeline.scalar_scatter(x, y, z) # 绘制三维散点图
+mlab.figure(bgcolor=(1, 1, 1))  # 绘制背景面板为白色
+pts = mlab.pipeline.scalar_scatter(x, y, z)  # 绘制三维散点图
 pts.add_attribute(part_label, 'colors')
 pts.data.point_data.set_active_scalars('colors')
 
 # 修改glyph对象的属性来设置点的缩放因子和缩放模式
 g = mlab.pipeline.glyph(pts)
-g.glyph.glyph.scale_factor = 0.03 # 缩放大小
-g.glyph.scale_mode = 'data_scaling_off' # 缩放模式
+g.glyph.glyph.scale_factor = 0.03  # 缩放大小
+g.glyph.scale_mode = 'data_scaling_off'  # 缩放模式
 
 mlab.show()
-

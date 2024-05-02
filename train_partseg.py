@@ -17,14 +17,19 @@ from pathlib import Path
 from tqdm import tqdm
 from data_utils.ShapeNetDataLoader import PartNormalDataset
 
+"""
+训练所需设置参数：
+--model pointnet2_part_seg_msg 
+--normal 
+--log_dir pointnet2_part_seg_msg
+"""
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = BASE_DIR
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 
-seg_classes = {'Earphone': [16, 17, 18], 'Motorbike': [30, 31, 32, 33, 34, 35], 'Rocket': [41, 42, 43],
-               'Car': [8, 9, 10, 11], 'Laptop': [28, 29], 'Cap': [6, 7], 'Skateboard': [44, 45, 46], 'Mug': [36, 37],
-               'Guitar': [19, 20, 21], 'Bag': [4, 5], 'Lamp': [24, 25, 26, 27], 'Table': [47, 48, 49],
-               'Airplane': [0, 1, 2, 3], 'Pistol': [38, 39, 40], 'Chair': [12, 13, 14, 15], 'Knife': [22, 23]}
+# 各个物体部件的编号
+seg_classes = {'Sheep': [0, 1, 2, 3]}
 seg_label_to_cat = {}  # {0:Airplane, 1:Airplane, ...49:Table}
 for cat in seg_classes.keys():
     for label in seg_classes[cat]:
@@ -34,12 +39,13 @@ for cat in seg_classes.keys():
 def inplace_relu(m):
     classname = m.__class__.__name__
     if classname.find('ReLU') != -1:
-        m.inplace=True
+        m.inplace = True
+
 
 def to_categorical(y, num_classes):
     """ 1-hot encodes a tensor """
     new_y = torch.eye(num_classes)[y.cpu().data.numpy(),]
-    if (y.is_cuda):
+    if y.is_cuda:
         return new_y.cuda()
     return new_y
 
@@ -47,56 +53,38 @@ def to_categorical(y, num_classes):
 def parse_args():
     """
     解析命令行参数。
-
-    参数:
-    无
-
     返回:
     args: 包含所有命令行参数值的命名空间对象。
     """
 
     # 初始化命令行参数解析器
     parser = argparse.ArgumentParser('Model')
-
     # 添加模型名称参数
     parser.add_argument('--model', type=str, default='pointnet_part_seg', help='model name')
-
     # 添加训练时的批次大小参数
-    parser.add_argument('--batch_size', type=int, default=16, help='batch Size during training')
-
+    parser.add_argument('--batch_size', type=int, default=4, help='batch Size during training')
     # 添加训练的轮次数参数
-    parser.add_argument('--epoch', default=251, type=int, help='epoch to run')
-
+    parser.add_argument('--epoch', default=5, type=int, help='epoch to run')
     # 添加初始学习率参数
     parser.add_argument('--learning_rate', default=0.001, type=float, help='initial learning rate')
-
     # 添加指定使用的GPU设备参数
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
-
     # 添加优化器选择参数
     parser.add_argument('--optimizer', type=str, default='Adam', help='Adam or SGD')
-
     # 添加日志路径参数
     parser.add_argument('--log_dir', type=str, default=None, help='log path')
-
     # 添加权重衰减参数
     parser.add_argument('--decay_rate', type=float, default=1e-4, help='weight decay')
-
     # 添加点的数量参数
     parser.add_argument('--npoint', type=int, default=2048, help='point Number')
-
     # 添加是否使用法向量的标志参数
     parser.add_argument('--normal', action='store_true', default=False, help='use normals')
-
     # 添加学习率衰减步长参数
     parser.add_argument('--step_size', type=int, default=20, help='decay step for lr decay')
-
     # 添加学习率衰减率参数
     parser.add_argument('--lr_decay', type=float, default=0.5, help='decay rate for lr decay')
-
     # 解析并返回命令行参数
     return parser.parse_args()
-
 
 
 def main(args):
@@ -135,12 +123,13 @@ def main(args):
     log_string('PARAMETER ...')
     log_string(args)
 
-    root = 'data/shapenetcore_partanno_segmentation_benchmark_v0_normal/'
+    root = 'data/sheep/'
 
     TRAIN_DATASET = PartNormalDataset(root=root, npoints=args.npoint, split='trainval', normal_channel=args.normal)
-    trainDataLoader = torch.utils.data.DataLoader(TRAIN_DATASET, batch_size=args.batch_size, shuffle=True, num_workers=10, drop_last=True)
+    trainDataLoader = torch.utils.data.DataLoader(TRAIN_DATASET, batch_size=args.batch_size, shuffle=True,
+                                                  num_workers=4)
     TEST_DATASET = PartNormalDataset(root=root, npoints=args.npoint, split='test', normal_channel=args.normal)
-    testDataLoader = torch.utils.data.DataLoader(TEST_DATASET, batch_size=args.batch_size, shuffle=False, num_workers=10)
+    testDataLoader = torch.utils.data.DataLoader(TEST_DATASET, batch_size=args.batch_size, shuffle=False, num_workers=4)
     log_string("The number of training data is: %d" % len(TRAIN_DATASET))
     log_string("The number of test data is: %d" % len(TEST_DATASET))
 
@@ -256,7 +245,8 @@ def main(args):
 
             classifier = classifier.eval()
 
-            for batch_id, (points, label, target) in tqdm(enumerate(testDataLoader), total=len(testDataLoader), smoothing=0.9):
+            for batch_id, (points, label, target) in tqdm(enumerate(testDataLoader), total=len(testDataLoader),
+                                                          smoothing=0.9):
                 cur_batch_size, NUM_POINT, _ = points.size()
                 points, label, target = points.float().cuda(), label.long().cuda(), target.long().cuda()
                 points = points.transpose(2, 1)
@@ -301,7 +291,7 @@ def main(args):
             mean_shape_ious = np.mean(list(shape_ious.values()))
             test_metrics['accuracy'] = total_correct / float(total_seen)
             test_metrics['class_avg_accuracy'] = np.mean(
-                np.array(total_correct_class) / np.array(total_seen_class, dtype=np.float))
+                np.array(total_correct_class) / np.array(total_seen_class, dtype=float))
             for cat in sorted(shape_ious.keys()):
                 log_string('eval mIoU of %s %f' % (cat + ' ' * (14 - len(cat)), shape_ious[cat]))
             test_metrics['class_avg_iou'] = mean_shape_ious
@@ -309,7 +299,7 @@ def main(args):
 
         log_string('Epoch %d test Accuracy: %f  Class avg mIOU: %f   Inctance avg mIOU: %f' % (
             epoch + 1, test_metrics['accuracy'], test_metrics['class_avg_iou'], test_metrics['inctance_avg_iou']))
-        if (test_metrics['inctance_avg_iou'] >= best_inctance_avg_iou):
+        if test_metrics['inctance_avg_iou'] >= best_inctance_avg_iou:
             logger.info('Save model...')
             savepath = str(checkpoints_dir) + '/best_model.pth'
             log_string('Saving at %s' % savepath)

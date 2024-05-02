@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from models.pointnet2_utils import PointNetSetAbstractionMsg,PointNetSetAbstraction,PointNetFeaturePropagation
+from models.pointnet2_utils import PointNetSetAbstractionMsg, PointNetSetAbstraction, PointNetFeaturePropagation
 
 
 class get_model(nn.Module):
@@ -22,6 +22,11 @@ class get_model(nn.Module):
                 additional_channel = 0
 
             self.normal_channel = normal_channel
+
+            # 512 = 在最远点采样中采样的点数
+            # [0.1, 0.2, 0.4] = 在局部区域内的搜索半径
+            # [16, 32, 128] = 每个局部区域内的点数
+            # [[32, 32, 64], [64, 64, 128], [64, 96, 128]] = 在每个点上MLP（多层感知器）的输出尺寸
 
             # 定义第一个点云集采样模块
             self.sa1 = PointNetSetAbstractionMsg(512, [0.1, 0.2, 0.4], [32, 64, 128], 3+additional_channel, [[32, 32, 64], [64, 64, 128], [64, 96, 128]])

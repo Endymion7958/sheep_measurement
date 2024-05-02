@@ -5,50 +5,44 @@ import warnings  # 用于处理警告信息
 import numpy as np  # 用于数值计算
 from torch.utils.data import Dataset  # 导入PyTorch的Dataset类
 
-# 忽略警告信息
 warnings.filterwarnings('ignore')
+
 
 # 定义一个函数，用于对点云进行归一化处理
 def pc_normalize(pc):
     """
     对点云数据进行标准化处理。
-
     参数:
     pc: numpy数组，代表点云数据，其中每一行是一个点的坐标。
-
     返回值:
     标准化后的点云数据，使其具有单位范数。
     """
-
     # 计算点云数据的质心（中心点）
     centroid = np.mean(pc, axis=0)
-
     # 将点云数据中的每个点减去质心，以质心为原点重新坐标化
     pc = pc - centroid
-
     # 计算点云数据在重新坐标化后的最大长度（投影到任意轴上的最大长度）
     m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
-
     # 将点云数据中的每个点按最大长度进行缩放，使其具有单位范数
     pc = pc / m
-
     return pc
 
 
 class PartNormalDataset(Dataset):
     class ShapeNetCorePartAnnotation:
         """
-        构建ShapeNetCore部分注解数据集的加载器。
+        构建ShapeNetCore Part Annotation数据集的加载器。
 
         参数:
         - root: 数据集根目录的路径，默认为'./data/shapenetcore_partanno_segmentation_benchmark_v0_normal'。
         - npoints: 采样点的数量，默认为2500。
         - split: 数据集的划分，可以选择'train'、'val'、'test'或'trainval'，默认为'train'。
-        - class_choice: 选择加载特定类别数据的选项，默认为None，即加载所有类别。
+        - class_choice: 选择特定的类别进行加载，默认为None，即加载所有类别。
         - normal_channel: 是否包含法向量通道，默认为False。
         """
 
-        def __init__(self, root='./data/shapenetcore_partanno_segmentation_benchmark_v0_normal', npoints=2500, split='train', class_choice=None, normal_channel=False):
+        def __init__(self, root='./data/shapenetcore_partanno_segmentation_benchmark_v0_normal', npoints=2500,
+                     split='train', class_choice=None, normal_channel=False):
             # 初始化参数和基本类别信息
             self.npoints = npoints
             self.root = root
@@ -69,7 +63,7 @@ class PartNormalDataset(Dataset):
                 self.cat = {k: v for k, v in self.cat.items() if k in class_choice}
 
             # 加载数据集划分信息，并根据split选择对应的数据
-            self.meta = {}
+            self.meta = {}  # 读取分好类的文件夹jason文件并将其名字放入列表中
             with open(os.path.join(self.root, 'train_test_split', 'shuffled_train_file_list.json'), 'r') as f:
                 train_ids = set([str(d.split('/')[2]) for d in json.load(f)])
             with open(os.path.join(self.root, 'train_test_split', 'shuffled_val_file_list.json'), 'r') as f:
@@ -89,7 +83,7 @@ class PartNormalDataset(Dataset):
                 elif split == 'test':
                     fns = [fn for fn in fns if fn[0:-4] in test_ids]
                 else:
-                    print('Unknown split: %s. Exiting..' % (split))
+                    print('Unknown split: %s. Exiting..' % split)
                     exit(-1)
                 for fn in fns:
                     token = (os.path.splitext(os.path.basename(fn))[0])
@@ -116,27 +110,45 @@ class PartNormalDataset(Dataset):
             self.cache = {}
             self.cache_size = 20000
 
-    # 定义__getitem__方法，用于按索引获取数据集中的样本
     def __getitem__(self, index):
+        """
+        根据指定的索引从数据集中获取一个样本。
+
+        参数:
+        - index: int, 指定要获取的样本的索引。
+
+        返回值:
+        - point_set: numpy.ndarray, 样本的点集，经过标准化处理。
+        - cls: numpy.ndarray, 样本的类别标签，是一个整数数组。
+        - seg: numpy.ndarray, 样本的分割标签，是一个整数数组。
+        """
+        # 尝试从缓存中获取样本，如果存在则直接使用
         if index in self.cache:
             point_set, cls, seg = self.cache[index]
         else:
+            # 从数据路径中读取样本信息和分类
             fn = self.datapath[index]
             cat = self.datapath[index][0]
             cls = self.classes[cat]
             cls = np.array([cls]).astype(np.int32)
+            # 读取并处理数据
             data = np.loadtxt(fn[1]).astype(np.float32)
+            # 根据是否包含正常通道处理点集
             if not self.normal_channel:
                 point_set = data[:, 0:3]
             else:
                 point_set = data[:, 0:6]
             seg = data[:, -1].astype(np.int32)
+            # 如果缓存未满，将该样本加入缓存
             if len(self.cache) < self.cache_size:
                 self.cache[index] = (point_set, cls, seg)
+
+        # 对点集的前3个维度进行标准化处理
         point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])
 
+        # 对分割标签进行随机采样
         choice = np.random.choice(len(seg), self.npoints, replace=True)
-        # resample
+        # 对点集和分割标签进行重采样
         point_set = point_set[choice, :]
         seg = seg[choice]
 
@@ -145,6 +157,3 @@ class PartNormalDataset(Dataset):
     # 定义__len__方法，返回数据集中样本的数量
     def __len__(self):
         return len(self.datapath)
-
-
-

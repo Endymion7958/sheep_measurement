@@ -3,6 +3,11 @@ import torch
 import torch.nn.functional as F
 from models.pointnet2_utils import PointNetSetAbstractionMsg, PointNetSetAbstraction, PointNetFeaturePropagation
 
+torch.backends.cudnn.enable = True
+torch.backends.cudnn.benchmark = True
+CUDA_LAUNCH_BLOCKING = 1
+
+
 class get_model(nn.Module):
     """
     初始化模型结构。
@@ -48,7 +53,6 @@ class get_model(nn.Module):
         self.conv1 = nn.Conv1d(128, 128, 1)
         self.bn1 = nn.BatchNorm1d(128)
         self.drop1 = nn.Dropout(0.5)
-
         # 定义最后一层卷积层，用于输出分类结果
         self.conv2 = nn.Conv1d(128, num_classes, 1)
 

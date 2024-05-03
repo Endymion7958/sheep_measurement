@@ -1,0 +1,7 @@
+2024-05-03 22:17:05,241 - Model - INFO - PARAMETER ...
+2024-05-03 22:17:05,241 - Model - INFO - Namespace(batch_size=4, decay_rate=0.0001, epoch=5, gpu='0', learning_rate=0.001, log_dir='pointnet2_part_seg_ssg', lr_decay=0.5, model='pointnet2_part_seg_ssg', normal=False, npoint=2048, optimizer='Adam', step_size=20)
+2024-05-03 22:17:05,242 - Model - INFO - The number of training data is: 59
+2024-05-03 22:17:05,242 - Model - INFO - The number of test data is: 6
+2024-05-03 22:17:05,366 - Model - INFO - No existing model, starting training from scratch...
+2024-05-03 22:17:05,941 - Model - INFO - Epoch 1 (1/5):
+2024-05-03 22:17:05,941 - Model - INFO - Learning rate:0.001000

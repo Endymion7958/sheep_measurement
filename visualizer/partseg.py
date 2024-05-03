@@ -10,14 +10,14 @@ import sys
 
 # 读取文件中的坐标(x,y,z)和标签.输入的文本是已经归一化好的
 sample_points = 2048
-points = np.genfromtxt('Cap_0.txt', delimiter=' ')
+points = np.genfromtxt('Sheep_1.txt', delimiter=' ')
 x = points[:, 0]  # x position of point
 y = points[:, 1]  # y position of point
 z = points[:, 2]  # z position of point
 # x_normalized = (x - np.min(x)) / (np.max(x) - np.min(x))
 # y_normalized = (y - np.min(y)) / (np.max(y) - np.min(y))
 # z_normalized = (z - np.min(z)) / (np.max(z) - np.min(z))
-part_label = np.expand_dims(points[:, 6], axis=1)
+part_label = np.expand_dims(points[:, 3], axis=1)
 
 # 预定义部件颜色的值
 rgba = np.array(
@@ -25,8 +25,10 @@ rgba = np.array(
 rgba[:, -1] = 255  # 设置颜色第四维度-不透明
 
 # 根据不同的label值选择不同的部件颜色值
-part_label = np.where(part_label == 6, rgba[0], part_label.astype(int))
-part_label = np.where(part_label == 7, rgba[1], part_label.astype(int))
+part_label = np.where(part_label == 0, rgba[0], part_label.astype(int))
+part_label = np.where(part_label == 1, rgba[1], part_label.astype(int))
+part_label = np.where(part_label == 2, rgba[2], part_label.astype(int))
+part_label = np.where(part_label == 3, rgba[3], part_label.astype(int))
 
 mlab.figure(bgcolor=(1, 1, 1))  # 绘制背景面板为白色
 pts = mlab.pipeline.scalar_scatter(x, y, z)  # 绘制三维散点图

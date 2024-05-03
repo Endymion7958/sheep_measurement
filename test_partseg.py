@@ -4,7 +4,7 @@ Date: Nov 2019
 """
 import argparse
 import os
-from data_utils.ShapeNetDataLoader import PartNormalDataset
+from data_utils.SheepDataLoader import PartNormalDataset
 import torch
 import logging
 import sys

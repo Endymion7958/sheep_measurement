@@ -1,0 +1,14 @@
+2024-05-03 18:11:28,961 - Model - INFO - PARAMETER ...
+2024-05-03 18:11:28,961 - Model - INFO - Namespace(batch_size=4, decay_rate=0.0001, epoch=5, gpu='0', learning_rate=0.001, log_dir='pointnet_part_seg', lr_decay=0.5, model='pointnet_part_seg', normal=False, npoint=2048, optimizer='Adam', step_size=20)
+2024-05-03 18:11:28,964 - Model - INFO - The number of training data is: 59
+2024-05-03 18:11:28,964 - Model - INFO - The number of test data is: 6
+2024-05-03 18:11:29,119 - Model - INFO - No existing model, starting training from scratch...
+2024-05-03 18:11:29,690 - Model - INFO - Epoch 1 (1/5):
+2024-05-03 18:11:29,690 - Model - INFO - Learning rate:0.001000
+2024-05-03 18:12:32,662 - Model - INFO - PARAMETER ...
+2024-05-03 18:12:32,672 - Model - INFO - Namespace(batch_size=4, decay_rate=0.0001, epoch=5, gpu='0', learning_rate=0.001, log_dir='pointnet_part_seg', lr_decay=0.5, model='pointnet_part_seg', normal=False, npoint=2048, optimizer='Adam', step_size=20)
+2024-05-03 18:12:32,673 - Model - INFO - The number of training data is: 59
+2024-05-03 18:12:32,674 - Model - INFO - The number of test data is: 6
+2024-05-03 18:12:32,809 - Model - INFO - No existing model, starting training from scratch...
+2024-05-03 18:12:33,455 - Model - INFO - Epoch 1 (1/5):
+2024-05-03 18:12:33,457 - Model - INFO - Learning rate:0.001000

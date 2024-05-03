@@ -15,7 +15,7 @@ import numpy as np
 
 from pathlib import Path
 from tqdm import tqdm
-from data_utils.ShapeNetDataLoader import PartNormalDataset
+from data_utils.SheepDataLoader import PartNormalDataset
 
 """
 训练所需设置参数：
@@ -30,23 +30,45 @@ sys.path.append(os.path.join(ROOT_DIR, 'models'))
 
 # 各个物体部件的编号
 seg_classes = {'Sheep': [0, 1, 2, 3]}
-seg_label_to_cat = {}  # {0:Airplane, 1:Airplane, ...49:Table}
+seg_label_to_cat = {}
 for cat in seg_classes.keys():
     for label in seg_classes[cat]:
         seg_label_to_cat[label] = cat
 
+"""
+  将给定的ReLU层设置为就地操作。
+  对于名为ReLU的层，此函数将它们的inplace属性设置为True，
+  这意味着ReLU操作将在输入数据上直接进行，而不是创建新的Tensor。
+ 
+  @param m 要检查和修改的层。期望是一个ReLU层实例。
+"""
+
 
 def inplace_relu(m):
-    classname = m.__class__.__name__
+    classname = m.__class__.__name__  # 获取层的名称
+    # 检查层名是否包含'ReLU'，若包含则设置inplace为True
     if classname.find('ReLU') != -1:
         m.inplace = True
 
 
 def to_categorical(y, num_classes):
-    """ 1-hot encodes a tensor """
+    """
+    将标签向量转换为 one-hot 编码形式的张量。
+
+    参数:
+    y - 输入的标签向量，可以是整数或长整数类型的tensor。
+    num_classes - 标签类别总数，即 one-hot 编码矩阵的列数。
+
+    返回值:
+    转换后的 one-hot 编码张量。如果输入的标签向量 `y` 是在CUDA设备上，则返回的张量也在CUDA设备上。
+    """
+    # 将输入标签转换为 one-hot 编码形式
     new_y = torch.eye(num_classes)[y.cpu().data.numpy(),]
+
+    # 检查输入标签是否在CUDA设备上，如果是，则将one-hot编码张量也移动到CUDA设备上
     if y.is_cuda:
         return new_y.cuda()
+
     return new_y
 
 
@@ -88,14 +110,34 @@ def parse_args():
 
 
 def main(args):
-    def log_string(str):
-        logger.info(str)
-        print(str)
+    """
+    主函数，用于执行模型训练和测试的流程。
 
-    '''HYPER PARAMETER'''
+    参数:
+    - args: 命令行参数对象，包含训练过程中的各种参数设置。
+
+    返回值:
+    - 无
+    """
+
+    # 定义一个记录字符串信息的日志函数
+    def log_string(str):
+        """
+        在控制台和日志系统中记录字符串信息。
+
+        参数:
+        - str: 要记录的字符串信息。
+
+        返回值:
+        - 无
+        """
+        logger.info(str)  # 在日志系统中记录信息
+        print(str)  # 在控制台打印信息
+
+    # 设置超参数和创建目录
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-    '''CREATE DIR'''
+    # 创建实验目录和子目录
     timestr = str(datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
     exp_dir = Path('./log/')
     exp_dir.mkdir(exist_ok=True)
@@ -111,7 +153,7 @@ def main(args):
     log_dir = exp_dir.joinpath('logs/')
     log_dir.mkdir(exist_ok=True)
 
-    '''LOG'''
+    # 配置日志
     args = parse_args()
     logger = logging.getLogger("Model")
     logger.setLevel(logging.INFO)
@@ -123,6 +165,7 @@ def main(args):
     log_string('PARAMETER ...')
     log_string(args)
 
+    # 加载数据集
     root = 'data/sheep/'
 
     TRAIN_DATASET = PartNormalDataset(root=root, npoints=args.npoint, split='trainval', normal_channel=args.normal)
@@ -133,10 +176,11 @@ def main(args):
     log_string("The number of training data is: %d" % len(TRAIN_DATASET))
     log_string("The number of test data is: %d" % len(TEST_DATASET))
 
-    num_classes = 16
-    num_part = 50
+    # 模型设置
+    num_classes = 1
+    num_part = 4
 
-    '''MODEL LOADING'''
+    # 加载模型
     MODEL = importlib.import_module(args.model)
     shutil.copy('models/%s.py' % args.model, str(exp_dir))
     shutil.copy('models/pointnet2_utils.py', str(exp_dir))
@@ -145,15 +189,29 @@ def main(args):
     criterion = MODEL.get_loss().cuda()
     classifier.apply(inplace_relu)
 
+    # 权重初始化
     def weights_init(m):
-        classname = m.__class__.__name__
+        """
+        对模型的权重进行初始化。
+
+        参数:
+        - m: 模型中的模块，可以是卷积层或线性层。
+
+        返回值:
+        - 无返回值，直接在原模块的权重上进行操作。
+        """
+        classname = m.__class__.__name__  # 获取模块的类名
+
+        # 如果模块是卷积层，使用Xavier正态分布初始化权重，并将偏置初始化为0
         if classname.find('Conv2d') != -1:
             torch.nn.init.xavier_normal_(m.weight.data)
             torch.nn.init.constant_(m.bias.data, 0.0)
+        # 如果模块是线性层，同样使用Xavier正态分布初始化权重，并将偏置初始化为0
         elif classname.find('Linear') != -1:
             torch.nn.init.xavier_normal_(m.weight.data)
             torch.nn.init.constant_(m.bias.data, 0.0)
 
+    # 加载预训练模型或进行权重初始化
     try:
         checkpoint = torch.load(str(exp_dir) + '/checkpoints/best_model.pth')
         start_epoch = checkpoint['epoch']
@@ -164,6 +222,7 @@ def main(args):
         start_epoch = 0
         classifier = classifier.apply(weights_init)
 
+    # 设置优化器
     if args.optimizer == 'Adam':
         optimizer = torch.optim.Adam(
             classifier.parameters(),
@@ -175,10 +234,25 @@ def main(args):
     else:
         optimizer = torch.optim.SGD(classifier.parameters(), lr=args.learning_rate, momentum=0.9)
 
+    # 学习率和BN动量调整函数
     def bn_momentum_adjust(m, momentum):
+        """
+        调整批量归一化层的动量。
+
+        该函数检查给定的模块m是否为批量归一化层（包括BatchNorm2d和BatchNorm1d），如果是，则将动量参数更新为指定的动量值。
+
+        参数:
+        - m: 要调整动量的模块。可以是torch.nn.BatchNorm2d或torch.nn.BatchNorm1d类型的实例。
+        - momentum: 指定的新动量值。
+
+        返回值:
+        - 无
+        """
         if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m, torch.nn.BatchNorm1d):
+            # 如果模块m是BatchNorm2d或BatchNorm1d类型，则更新其动量参数
             m.momentum = momentum
 
+    # 训练配置
     LEARNING_RATE_CLIP = 1e-5
     MOMENTUM_ORIGINAL = 0.1
     MOMENTUM_DECCAY = 0.5
@@ -189,11 +263,12 @@ def main(args):
     best_class_avg_iou = 0
     best_inctance_avg_iou = 0
 
+    # 开始训练
     for epoch in range(start_epoch, args.epoch):
         mean_correct = []
 
         log_string('Epoch %d (%d/%s):' % (global_epoch + 1, epoch + 1, args.epoch))
-        '''Adjust learning rate and BN momentum'''
+        # 调整学习率和BN动量
         lr = max(args.learning_rate * (args.lr_decay ** (epoch // args.step_size)), LEARNING_RATE_CLIP)
         log_string('Learning rate:%f' % lr)
         for param_group in optimizer.param_groups:
@@ -205,7 +280,7 @@ def main(args):
         classifier = classifier.apply(lambda x: bn_momentum_adjust(x, momentum))
         classifier = classifier.train()
 
-        '''learning one epoch'''
+        # 进行一个epoch的训练
         for i, (points, label, target) in tqdm(enumerate(trainDataLoader), total=len(trainDataLoader), smoothing=0.9):
             optimizer.zero_grad()
 
@@ -227,9 +302,11 @@ def main(args):
             loss.backward()
             optimizer.step()
 
+        # 计算并记录训练集准确率
         train_instance_acc = np.mean(mean_correct)
         log_string('Train accuracy is: %.5f' % train_instance_acc)
 
+        # 进行测试
         with torch.no_grad():
             test_metrics = {}
             total_correct = 0
